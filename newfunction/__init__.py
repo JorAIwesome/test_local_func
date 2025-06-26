@@ -2,33 +2,23 @@ import logging
 import azure.functions as func
 import pandas as pd
 import io
-from azure.storage.blob import BlobServiceClient
 import os
+from azure.storage.blob import BlobServiceClient
 
 def access_file_from_adls_with_sas(account_name, sas_token, container_name, folder_name, file_name):
     try:
-        # Maak blob service URL zonder container of bestand
         blob_url = f"https://{account_name}.blob.core.windows.net"
-
-        # Initialiseer de client met de SAS-token
         blob_service_client = BlobServiceClient(account_url=blob_url, credential=sas_token)
 
-        # Bestandsnaam inclusief folder (als folder_name is '.', dan alleen file_name)
         blob_path = file_name if folder_name in ['', '.'] else f"{folder_name}/{file_name}"
-
-        # Haal de blob client op
         blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_path)
 
         if not blob_client.exists():
             logging.error(f"Blob '{blob_path}' bestaat niet.")
             return None
 
-        # Download inhoud als bytes
         download_stream = blob_client.download_blob()
-        file_content = download_stream.readall()
-
-        # Lees bestand als DataFrame
-        file_stream = io.BytesIO(file_content)
+        file_stream = io.BytesIO(download_stream.readall())
 
         if file_name.endswith('.xlsx'):
             df = pd.read_excel(file_stream)
@@ -47,18 +37,20 @@ def access_file_from_adls_with_sas(account_name, sas_token, container_name, fold
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Function trigger ontvangen.")
 
-    # Je SAS-configuratie (bij voorkeur uit app settings via os.getenv)
+    # 🔐 Gebruik env vars (Application Settings in Azure)
     account_name = os.getenv('ACCOUNT_NAME')
-    sas_token = os.getenv('SAS_tok')
+    sas_token = os.getenv('SAS_TOKEN')
     container_name = os.getenv('CONTAINER_NAME')
-    folder_name = ""  # of "" als er geen subfolder is
-    file_name = "Roosterdata_HHH_8.xlsx"
+    folder_name = '.'  # of iets als 'submap' indien van toepassing
+    file_name = 'Roosterdata_HHH_8.xlsx'
+
+    if not all([account_name, sas_token, container_name]):
+        return func.HttpResponse("Missing environment variables", status_code=500)
 
     df = access_file_from_adls_with_sas(account_name, sas_token, container_name, folder_name, file_name)
 
     if df is None:
-        return func.HttpResponse("Kon bestand niet openen of lezen.", status_code=500)
+        return func.HttpResponse("Fout bij ophalen of lezen van het bestand", status_code=500)
 
-    # Bijv. eerste celwaarde teruggeven
     eerste_waarde = df.iloc[1, 0]
-    return func.HttpResponse(f"Eerste waarde in het bestand: {eerste_waarde}")
+    return func.HttpResponse(f"Eerste waarde uit Excel-bestand: {eerste_waarde}", status_code=200)
