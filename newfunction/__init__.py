@@ -16,7 +16,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         df = pd.read_excel(file_stream)
 
         # Voorbeeld: geef eerste cel terug als controle
-        out = df.iloc[0, 0]
+        out = df.iloc[1, 0]
 
         return func.HttpResponse(f"Eerste cel in het bestand is: {out}", status_code=200)
 
