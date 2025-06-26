@@ -60,5 +60,5 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Kon bestand niet openen of lezen.", status_code=500)
 
     # Bijv. eerste celwaarde teruggeven
-    eerste_waarde = df.iloc[0, 0]
+    eerste_waarde = df.iloc[1, 0]
     return func.HttpResponse(f"Eerste waarde in het bestand: {eerste_waarde}")
