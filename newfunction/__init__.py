@@ -1,24 +1,27 @@
 import azure.functions as func
 import pandas as pd
-import requests
 import io
+import requests
+import os
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        file_url = "https://blobhhh.blob.core.windows.net/containerhhh/Roosterdata_HHH_8.xlsx"
+        base_url = "https://blobhhh.blob.core.windows.net/containerhhh/Roosterdata_HHH_8.xlsx"
+        sas_token = os.getenv('SAS_tok')
 
-        # Bestand ophalen via publieke URL
-        response = requests.get(file_url)
-        response.raise_for_status()  # Fout afvangen als bestand niet bestaat
+        full_url = f"{base_url}?{sas_token}"
 
-        # Lees de Excel-inhoud in een pandas DataFrame
+        # Haal de blob op
+        response = requests.get(full_url)
+        response.raise_for_status()
+
+        # Lees de Excel in als DataFrame
         file_stream = io.BytesIO(response.content)
         df = pd.read_excel(file_stream)
 
-        # Voorbeeld: geef eerste cel terug als controle
-        out = df.iloc[1, 0]
+        eerste_cel = df.iloc[1, 0]
 
-        return func.HttpResponse(f"Eerste cel in het bestand is: {out}", status_code=200)
+        return func.HttpResponse(f"Eerste cel: {eerste_cel}", status_code=200)
 
     except Exception as e:
-        return func.HttpResponse(f"Fout bij ophalen of lezen van bestand: {e}", status_code=500)
+        return func.HttpResponse(f"Fout bij ophalen of verwerken blob: {e}", status_code=500)
