@@ -1,21 +1,24 @@
-import logging
 import azure.functions as func
-from azure.storage.blob import BlockBlobClient
-import os
+import pandas as pd
+import requests
+import io
 
-ACCOUNT_NAME = os.environ['ACCOUNT_NAME']
-SAS_TOKEN = os.environ['SAS_TOKEN']
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
-    
-    file="" 
-    fileContent=""       
-    blob_service = BlockBlobClient(account_name=ACCOUNT_NAME,account_key=None,sas_token=SAS_TOKEN)
-    containername= os.environ['CONTAINER_NAME']
-    generator = blob_service.list_blobs(container_name=containername) #lists the blobs inside containers
-    for blob in generator:
-        file=blob_service.get_blob_to_text(containername,blob.name) 
-        logging.info(file.content)
-        fileContent+=blob.name+'\n'+file.content+'\n\n'
+    try:
+        file_url = "https://blobhhh.blob.core.windows.net/containerhhh/Roosterdata_HHH_8.xlsx"
 
-    return func.HttpResponse(f"{fileContent}")
+        # Bestand ophalen via publieke URL
+        response = requests.get(file_url)
+        response.raise_for_status()  # Fout afvangen als bestand niet bestaat
+
+        # Lees de Excel-inhoud in een pandas DataFrame
+        file_stream = io.BytesIO(response.content)
+        df = pd.read_excel(file_stream)
+
+        # Voorbeeld: geef eerste cel terug als controle
+        out = df.iloc[0, 0]
+
+        return func.HttpResponse(f"Eerste cel in het bestand is: {out}", status_code=200)
+
+    except Exception as e:
+        return func.HttpResponse(f"Fout bij ophalen of lezen van bestand: {e}", status_code=500)
